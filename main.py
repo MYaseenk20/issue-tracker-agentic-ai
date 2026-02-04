@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from app.routes.issues import router as issues_router
-from app.middleware.timer import timing_middleware
+from app.api.routes.issues import router as issues_router
+from app.api.middleware.timer import timing_middleware
 from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI()
 
