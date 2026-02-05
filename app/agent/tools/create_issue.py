@@ -31,5 +31,4 @@ def create_issue_tool(title: str,
         root_cause_hint=root_cause_hint,
         estimated_minutes=estimated_minutes
     )
-    print(issue)
     return issue.model_dump()

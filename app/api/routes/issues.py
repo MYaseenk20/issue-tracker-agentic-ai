@@ -1,9 +1,11 @@
+import json
 from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, HTTPException, status, Depends
 from sqlalchemy.orm import Session
 
+from app.agent.core import AgentService
 from app.api.Database import init_db, get_db
 from app.api.models import Issue
 from app.api.schemas import IssueUpdate, IssueCreate, IssueResponse
@@ -11,19 +13,68 @@ from app.api.schemas import IssueUpdate, IssueCreate, IssueResponse
 # from app.storage import load_data,save_data
 router = APIRouter(prefix="/api/issues" ,tags=["Issues"])
 
+agent = AgentService()
 
 @router.on_event("startup")
 def startup_event():
     init_db()
 
 @router.post("/issues", status_code=status.HTTP_201_CREATED, response_model=IssueResponse)
-def create_issue(issue: IssueCreate,db:Session = Depends(get_db)):
-    db_issue = Issue(**issue.dict())
-    db.add(db_issue)
-    db.commit()
-    db.refresh(db_issue)
-    return db_issue
+def create_issue(query:str,db:Session = Depends(get_db)):
+    """
+    Create an issue using natural language query.
 
+    Args:
+        query: Natural language description (e.g., "Website giving 502 error, high priority")
+        db: Database session
+
+    Returns:
+        Created issue object
+    """
+
+    try:
+        agent_response = agent.process_chat(
+            user_input=query,
+            chat_history=[]
+        )
+
+        if not agent_response.get("tool_result"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not extract issue details from query. Please be more specific."
+            )
+        issue_data = json.loads(agent_response["tool_result"])
+
+        issue = IssueCreate(**issue_data)
+
+        db_issue = Issue(**issue.dict())
+        db.add(db_issue)
+        db.commit()
+        db.refresh(db_issue)
+
+        return db_issue
+
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid issue data format from agent"
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Validation error: {str(e)}"
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating issue: {str(e)}"
+        )
+
+
+
+
+    pass
 
 @router.get("/issues", response_model=List[IssueResponse])
 def get_issues(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
@@ -71,80 +122,3 @@ def get_issue(issue_uuid: str, db: Session = Depends(get_db)):
 def health_check():
     return {"status": "healthy", "message": "Issue Tracker API is running"}
 
-# @router.get("/",response_model=list[IssueOut])
-# async def get_issues():
-#     """Retrieve all issues"""
-#     issues = load_data()
-#     return issues
-#
-# @router.post("/",response_model=IssueOut,status_code=status.HTTP_201_CREATED)
-# def create_issue(payload: IssueCreate):
-#     """
-#     Create a new issue
-#     The issue is persisted to data/issues.json
-#     """
-#
-#     issues = load_data()
-#
-#     issue = {
-#         "id": str(uuid.uuid4()),
-#         "title": payload.title,
-#         "description": payload.description,
-#         "priority": payload.priority,
-#         "status": IssueStatus.open,
-#     }
-#
-#     issues.append(issue)
-#     save_data(issues)
-#     return issue
-#
-#
-# @router.get("/{issue_id}",response_model=IssueOut)
-# def get_issue(issue_id: str):
-#     """
-#     Get single issue by ID
-#     Raises 404 if issue not found
-#     """
-#
-#     issues = load_data()
-#
-#     for issue in issues:
-#        if issue["id"] == issue_id:
-#            return issue
-#     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Issue not found")
-#
-# @router.delete("/{issue_id}",response_model=IssueOut)
-# def delete_issue(issue_id:str):
-#     """
-#     Get single issue by ID
-#     """
-#
-#     issues = load_data()
-#     for issue in issues:
-#         if issue["id"] == issue_id:
-#             issues.pop(issue_id)
-#             save_data(issues)
-#             return
-#     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Issue not found")
-#
-# def update_issue(issue_id:str,payload: IssueUpdate):
-#     """Update an existing issue by ID."""
-#     issues = load_data()
-#
-#     for issue in issues:
-#         if issue["id"] == issue_id:
-#             if payload.title is not None:
-#                 issue["title"] = payload.title
-#             if payload.description is not None:
-#                 issue["description"] = payload.description
-#             if payload.priority is not None:
-#                 issue["priority"] = payload.priority.value
-#             if payload.status is not None:
-#                 issue["status"] = payload.status.value
-#             save_data(issues)
-#             return issue
-#
-#     raise HTTPException(
-#         status_code=status.HTTP_404_NOT_FOUND,
-#         detail="Issue not found"
-#     )

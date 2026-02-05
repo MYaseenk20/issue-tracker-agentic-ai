@@ -15,7 +15,7 @@ class AgentService:
 
     def _build_agent(self):
         llm = ChatOllama(
-            model="llama3.1:latest",
+            model="llama3.2:3b",
             temperature=0.1,
         )
 
@@ -48,6 +48,7 @@ class AgentService:
             CREATE rules:
             - Use fields: title, description, priority, status, tags, root_cause_hint, estimated_minutes
             - If urgency/blocking implied => priority="high"
+            - **tags MUST be a list of strings, e.g., ["bug", "urgent"]. Use empty list [] if no tags.**
             - root_cause_hint: you should give a hint according to user prompt
             - estimated_minutes: omit/null if unknown is acceptable
             - Return ONLY the tool result.
@@ -66,20 +67,28 @@ class AgentService:
             "messages": message,
         })
 
-        # Extract tools used
+        # Extract tool results
+        tool_result = None
         tools_used = []
+
+        # Extract tools used
         for msg in response["messages"]:
             if hasattr(msg, 'tool_calls') and msg.tool_calls:
                 for tool_call in msg.tool_calls:
                     tools_used.append(tool_call['name'])
 
-        # Print summary
+            # Check for tool messages (results from tool execution)
+            if hasattr(msg, 'type') and msg.type == 'tool':
+                tool_result = msg.content
+
         if tools_used:
             print(f"\n🔧 Tools Used: {', '.join(set(tools_used))}\n")
-        else:
-            print("\n📝 No tools were used (direct response)\n")
 
-        return response["messages"][-1].content
+        return {
+            "content": response["messages"][-1].content,
+            "tool_result": tool_result,
+            "tools_used": tools_used
+        }
 
 if __name__ == "__main__":
     agent = AgentService()
