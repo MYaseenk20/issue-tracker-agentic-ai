@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 
-from app.agent.tools.create_issue import create_issue_tool
+from app.agent.tools.create_issue_tool import create_issue_tool
+from app.agent.tools.update_issue_tool import update_issue_tool
 
 load_dotenv()
 from langchain.agents import create_agent
@@ -19,7 +20,7 @@ class AgentService:
             temperature=0.1,
         )
 
-        tools = [create_issue_tool,]
+        tools = [create_issue_tool,update_issue_tool]
 
         agent = create_agent(
             model=llm,

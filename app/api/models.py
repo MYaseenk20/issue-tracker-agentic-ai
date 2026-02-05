@@ -8,7 +8,8 @@ Base = declarative_base()
 
 class Issue(Base):
     __tablename__ = "issues"
-    uuid = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    issue_id = Column(Integer, primary_key=True, autoincrement=True)  # Auto-increment
+    # uuid = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     title = Column(String(255), nullable=False)
     description = Column(String, nullable=True)
     priority = Column(String(50), nullable=False, default="medium")

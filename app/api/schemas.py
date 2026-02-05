@@ -40,7 +40,7 @@ class IssueUpdate(BaseModel):
 
 
 class IssueResponse(IssueBase):
-    uuid: str
+    issue_id: int
     created_at: datetime
     updated_at: datetime
 

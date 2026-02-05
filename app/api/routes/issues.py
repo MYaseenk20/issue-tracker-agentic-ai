@@ -82,21 +82,50 @@ def get_issues(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return issues
 
 
-@router.put("/issues/{issue_uuid}", response_model=IssueResponse)
-def update_issue(issue_uuid: str, issue_update: IssueUpdate, db: Session = Depends(get_db)):
-    db_issue = db.query(Issue).filter(Issue.uuid == issue_uuid).first()
-    if not db_issue:
-        raise HTTPException(status_code=404, detail="Issue not found")
+@router.put("/issue/", response_model=IssueResponse)
+def update_issue( query: str,db: Session = Depends(get_db)):
+    """
+    Update an issue using natural language.
 
-    # Update only provided fields
-    update_data = issue_update.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(db_issue, field, value)
+    Examples:
+        - "Change priority to high"
+        - "Update status to in_progress"
+        - "Mark as closed"
+    """
+    # issue_id: str, issue_update: IssueUpdate,
+    try :
+        agent_response= agent.process_chat(user_input=query,chat_history=[])
 
-    db_issue.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(db_issue)
-    return db_issue
+        if not agent_response.get("tool_result"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Agent did not return update data."
+            )
+
+        issue_data = json.loads(agent_response["tool_result"])
+
+        return issue_data
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid issue data format from agent"
+        )
+
+
+
+    # db_issue = db.query(Issue).filter(Issue.issue_id == issue_id).first()
+    # if not db_issue:
+    #     raise HTTPException(status_code=404, detail="Issue not found")
+    #
+    # # Update only provided fields
+    # update_data = issue_update.dict(exclude_unset=True)
+    # for field, value in update_data.items():
+    #     setattr(db_issue, field, value)
+    #
+    # db_issue.updated_at = datetime.utcnow()
+    # db.commit()
+    # db.refresh(db_issue)
+    # return db_issue
 
 
 # Delete issue
