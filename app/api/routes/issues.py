@@ -95,7 +95,7 @@ def update_issue( query: str,db: Session = Depends(get_db)):
     # issue_id: str, issue_update: IssueUpdate,
     try :
         agent_response= agent.process_chat(user_input=query,chat_history=[])
-
+        print(agent_response)
         if not agent_response.get("tool_result"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -139,7 +139,7 @@ def update_issue( query: str,db: Session = Depends(get_db)):
 # Delete issue
 @router.delete("/issues/{issue_uuid}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_issue(issue_uuid: str, db: Session = Depends(get_db)):
-    db_issue = db.query(Issue).filter(Issue.uuid == issue_uuid).first()
+    db_issue = db.query(Issue).filter(Issue.issue_id == issue_uuid).first()
     if not db_issue:
         raise HTTPException(status_code=404, detail="Issue not found")
 

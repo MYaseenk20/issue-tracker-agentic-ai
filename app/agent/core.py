@@ -48,10 +48,10 @@ class AgentService:
 
             CREATE rules:
             - Use fields: title, description, priority, status, tags, root_cause_hint, estimated_minutes
+            - make description from user query
             - If urgency/blocking implied => priority="high"
             - **tags MUST be a list of strings, e.g., ["bug", "urgent"]. Use empty list [] if no tags.**
             - root_cause_hint: you should give a hint according to user prompt
-            - estimated_minutes: omit/null if unknown is acceptable
             - Return ONLY the tool result.
             """
         )
